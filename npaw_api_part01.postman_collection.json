@@ -1,0 +1,127 @@
+{
+	"info": {
+		"_postman_id": "2ee5d916-f69a-4753-b319-e80a10280602",
+		"name": "npaw_api_part01",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "6757940"
+	},
+	"item": [
+		{
+			"name": "GetViews_JB_6Hours",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const crypto = require('crypto-js'); // Postman supports CryptoJS natively",
+							"",
+							"const accountCode = pm.environment.get('ACCOUNT_CODE'); ",
+							"const apiKey = pm.environment.get('API_KEY');             ",
+							"const host = \"https://api.npaw.com\";",
+							"",
+							"// API Path + Parameters",
+							"const callType = '/data?';",
+							"",
+							"// Parameters",
+							"const fromDate = 'fromDate=' + encodeURIComponent('last6hours');",
+							"const viewTypeFilter = '&type=all';",
+							"const dimFilter = '&filter=' + encodeURIComponent('[{\"name\":\"My IP\",\"rules\":{\"ip\":[\"187.190.4.127\"]}}]');",
+							"const granularity = '&granularity=hour';",
+							"const metrics = '&metrics=views';",
+							"const groupBy = '&groupBy=user,ip';",
+							"const orderBy = '&orderBy=views';",
+							"const limit = '&limit=5';",
+							"const orderDirection = '&orderDirection=desc';",
+							"",
+							"// Date token (expiration)",
+							"const ttl_ms = 31536000000; // 1 year in ms",
+							"const expiration_time = Date.now() + ttl_ms;",
+							"const dateToken = '&dateToken=' + expiration_time;",
+							"",
+							"// Build the pre-url",
+							"const preUrl = callType + fromDate + viewTypeFilter + dimFilter + granularity + metrics + groupBy + orderBy + limit + orderDirection + dateToken;",
+							"",
+							"// Generate MD5 token",
+							"const tokenString = accountCode + preUrl + apiKey;",
+							"const token = crypto.MD5(tokenString).toString();",
+							"",
+							"// Final URL",
+							"const finalUrl = host + accountCode + preUrl + '&token=' + token;",
+							"",
+							"// Set Postman environment/request variable for URL",
+							"pm.environment.set(\"final_url\", finalUrl);",
+							"",
+							"console.log(\"Generated token:\", token);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"let responseData;",
+							"try {",
+							"    responseData = pm.response.json();",
+							"} catch (err) {",
+							"    console.error('Failed to parse JSON response:', err);",
+							"}",
+							"",
+							"if (responseData && responseData.data && Array.isArray(responseData.data)) {",
+							"    console.log('UserID | IP | Views');",
+							"",
+							"    responseData.data.forEach(entry => {",
+							"        let ip = 'N/A';",
+							"        let userId = 'N/A';",
+							"        let views = 0;",
+							"",
+							"        // Extract dimensions",
+							"        if (entry.dimensionsInfo) {",
+							"            entry.dimensionsInfo.forEach(dim => {",
+							"                if (dim.code === 'ip') {",
+							"                    ip = dim.values[0];",
+							"                } else if (dim.code === 'user') {",
+							"                    userId = dim.values[0];",
+							"                }",
+							"            });",
+							"        }",
+							"",
+							"        // Extract views from metrics",
+							"        if (entry.metrics && entry.metrics.length > 0) {",
+							"            let metric = entry.metrics.find(m => m.code === 'views');",
+							"            if (metric && metric.values && metric.values.length > 0 && metric.values[0].data.length > 0) {",
+							"                // Sum all the view counts",
+							"                views = metric.values[0].data.reduce((sum, datapoint) => sum + datapoint[1], 0);",
+							"            }",
+							"        }",
+							"",
+							"        console.log(`${userId} | ${ip} | ${views}`);",
+							"    });",
+							"} else {",
+							"    console.log('⚠️ No data found in response!');",
+							"}",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{final_url}}",
+					"host": [
+						"{{final_url}}"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
